@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TaxMate NZ</title>
+
+<style>
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    font-family: system-ui, -apple-system, sans-serif;
+}
+
+/* LOADER */
+
+.loader-screen {
+    position: fixed;
+    inset: 0;
+    background: #000;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+    transition: opacity 0.8s ease;
+}
+
+.glow-orb {
+    width: 140px;
+    height: 140px;
+    border-radius: 50%;
+    background: radial-gradient(circle, #00ff88 0%, #0066ff 40%, #ff0033 70%, transparent 75%);
+    filter: blur(30px);
+    animation: pulse 3s ease-in-out infinite;
+    margin-bottom: 40px;
+}
+
+@keyframes pulse {
+    0% { transform: scale(0.9); opacity: 0.6; }
+    50% { transform: scale(1.2); opacity: 1; }
+    100% { transform: scale(0.9); opacity: 0.6; }
+}
+
+.disclaimer {
+    color: rgba(255,255,255,0.7);
+    font-size: 14px;
+    max-width: 420px;
+    text-align: center;
+    line-height: 1.5;
+    opacity: 0;
+    animation: fadeIn 2s ease forwards;
+    animation-delay: 1.5s;
+}
+
+@keyframes fadeIn {
+    to { opacity: 1; }
+}
+
+/* BACKGROUND */
+
+body {
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    background:
+        radial-gradient(circle at 20% 20%, #001a3d, transparent 40%),
+        radial-gradient(circle at 80% 30%, #00ff88, transparent 40%),
+        radial-gradient(circle at 50% 80%, #ff0033, transparent 40%),
+        #000;
+    background-size: 200% 200%;
+    animation: bgMove 18s infinite alternate ease-in-out;
+}
+
+@keyframes bgMove {
+    0% { background-position: 0% 0%; }
+    100% { background-position: 100% 100%; }
+}
+
+.title {
+    font-size: 42px;
+    letter-spacing: 6px;
+    font-weight: 700;
+    color: white;
+    margin-bottom: 30px;
+    opacity: 0;
+    transform: translateY(-20px);
+    transition: opacity 1s ease, transform 1s ease;
+}
+
+.title.reveal {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* CARD */
+
+.card {
+    width: 480px;
+    padding: 40px;
+    border-radius: 40px;
+    background: linear-gradient(135deg, rgba(0,0,0,0.7), rgba(0,0,0,0.45));
+    backdrop-filter: blur(30px);
+    box-shadow: 0 60px 120px rgba(0,0,0,0.9);
+    border: 1px solid rgba(255,255,255,0.15);
+    color: white;
+    opacity: 0;
+    transform: translateY(30px);
+    transition: opacity 1s ease, transform 1s ease;
+}
+
+.card.reveal {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+input {
+    width: 100%;
+    padding: 14px;
+    margin-bottom: 20px;
+    border-radius: 20px;
+    border: 1px solid rgba(255,255,255,0.2);
+    background: rgba(0,0,0,0.6);
+    color: white;
+    font-size: 16px;
+}
+
+button {
+    width: 100%;
+    padding: 14px;
+    border-radius: 20px;
+    border: 1px solid rgba(255,255,255,0.4);
+    background: linear-gradient(to bottom, rgba(255,255,255,0.2), rgba(255,255,255,0.05));
+    color: white;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.result {
+    margin-top: 30px;
+}
+
+.result-split {
+    display: flex;
+    justify-content: space-between;
+    gap: 20px;
+}
+
+.result-box {
+    flex: 1;
+    padding: 20px;
+    border-radius: 20px;
+    background: rgba(255,255,255,0.05);
+    text-align: center;
+}
+
+.label {
+    font-size: 13px;
+    opacity: 0.7;
+    margin-bottom: 8px;
+}
+
+.amount {
+    font-size: 26px;
+    font-weight: bold;
+}
+
+.breakdown {
+    margin-top: 20px;
+    font-size: 14px;
+}
+
+.row {
+    display: flex;
+    justify-content: space-between;
+    margin: 6px 0;
+}
+</style>
+</head>
+
+<body>
+
+<div class="loader-screen" id="loader">
+    <div class="glow-orb"></div>
+    <div class="disclaimer">
+        This calculator provides an estimate only.
+        Results may differ from your official IRD assessment.
+    </div>
+</div>
+
+<div class="title" id="title">TAXMATE</div>
+
+<div class="card" id="card">
+    <input id="income" type="number" placeholder="Gross Income">
+    <input id="paye" type="number" placeholder="PAYE Deducted">
+    <button onclick="calculate()">Calculate</button>
+
+    <div class="result" id="result" style="display:none;">
+        <div class="result-split">
+            <div class="result-box">
+                <div class="label">With IETC</div>
+                <div class="amount" id="amountWith"></div>
+            </div>
+            <div class="result-box">
+                <div class="label">Without IETC</div>
+                <div class="amount" id="amountWithout"></div>
+            </div>
+        </div>
+
+        <div class="breakdown" id="breakdown"></div>
+    </div>
+</div>
+
+<script>
+window.addEventListener("load", () => {
+    setTimeout(() => {
+        const loader = document.getElementById("loader");
+        loader.style.opacity = "0";
+        setTimeout(() => {
+            loader.remove();
+            document.getElementById("title").classList.add("reveal");
+            document.getElementById("card").classList.add("reveal");
+        }, 800);
+    }, 10000);
+});
+
+function calculateIncomeTax(income) {
+    let tax = 0;
+    if (income > 0) tax += Math.min(income, 15600) * 0.105;
+    if (income > 15600) tax += Math.min(income - 15600, 37900) * 0.175;
+    if (income > 53500) tax += Math.min(income - 53500, 24600) * 0.30;
+    if (income > 78100) tax += Math.min(income - 78100, 101900) * 0.33;
+    if (income > 180000) tax += (income - 180000) * 0.39;
+    return tax;
+}
+
+function calculateIETC(income) {
+    if (income < 24000) return 0;
+    if (income <= 66000) return 520;
+    if (income < 70000) return Math.max(0, 520 - 0.13 * (income - 66000));
+    return 0;
+}
+
+function currency(value) {
+    return value.toLocaleString("en-NZ", {
+        style: "currency",
+        currency: "NZD",
+        minimumFractionDigits: 2
+    });
+}
+
+function animateValue(element, start, end, duration) {
+    let startTime = null;
+    function animation(currentTime) {
+        if (!startTime) startTime = currentTime;
+        const progress = currentTime - startTime;
+        const percent = Math.min(progress / duration, 1);
+        const value = start + (end - start) * percent;
+        element.innerText = currency(value);
+        if (progress < duration) requestAnimationFrame(animation);
+    }
+    requestAnimationFrame(animation);
+}
+
+function calculate() {
+    const income = parseFloat(document.getElementById("income").value);
+    const paye = parseFloat(document.getElementById("paye").value);
+    if (!income || !paye) return;
+
+    const incomeTax = calculateIncomeTax(income);
+    const acc = income * 0.0167;
+    const ietc = calculateIETC(income);
+
+    const totalWithout = incomeTax + acc;
+    const totalWith = totalWithout - ietc;
+
+    const refundWith = paye - totalWith;
+    const refundWithout = paye - totalWithout;
+
+    document.getElementById("result").style.display = "block";
+
+    const amountWith = document.getElementById("amountWith");
+    const amountWithout = document.getElementById("amountWithout");
+
+    amountWith.style.color = refundWith >= 0 ? "#00ff88" : "#ff3b3b";
+    amountWithout.style.color = refundWithout >= 0 ? "#00ff88" : "#ff3b3b";
+
+    animateValue(amountWith, 0, refundWith, 1000);
+    animateValue(amountWithout, 0, refundWithout, 1000);
+
+    document.getElementById("breakdown").innerHTML = `
+        <div class="row"><span>Income Tax</span><span>${currency(incomeTax)}</span></div>
+        <div class="row"><span>ACC Levy</span><span>${currency(acc)}</span></div>
+        <div class="row"><span>IETC</span><span>- ${currency(ietc)}</span></div>
+    `;
+}
+</script>
+
+</body>
+</html>
